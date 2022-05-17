@@ -81,23 +81,23 @@ export default function Vote() {
           />
         ))}
         <div className="py-4 flex">
-          <div className="text-lg w-32 py-2">Name</div>
+          <div className="text-lg w-48 py-2">Name</div>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="outline outline-2 w-64 p-2 text-right"
+            className="outline outline-2 w-32 p-2 text-right"
           />
         </div>
         <div className="py-4 flex">
-          <div className="text-lg w-32 py-2">Gender</div>
+          <div className="text-lg w-16 py-2">Gender</div>
           <span className="w-64 text-right">
             {genders.map((g) => {
               const selectedClass = g === gender ? "bg-sky-500/[0.5]" : "";
               return (
                 <button
                   key={g}
-                  className={`outline outline-2 ml-4 py-2 px-5 ${selectedClass}`}
+                  className={`outline outline-2 ml-4 py-2 px-4 text-center ${selectedClass}`}
                   onClick={() => setGender(g)}
                 >
                   {g}
@@ -107,14 +107,14 @@ export default function Vote() {
           </span>
         </div>
         <div className="py-4 flex">
-          <div className="text-lg flex-1 w-80 py-2">Age</div>
+          <div className="text-lg flex-1 w-64 py-2">Age</div>
           <input
             type="number"
             min="8"
             max="120"
             value={age}
             onChange={(e) => setAge(e.target.value)}
-            className="outline outline-2 w-16 py-2 text-right"
+            className="outline outline-2 w-16 p-2 text-right"
           />
         </div>
         <button
