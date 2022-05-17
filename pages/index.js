@@ -44,7 +44,6 @@ export default function Home() {
             onImageUpload,
             onImageUpdate,
             onImageRemove,
-            isDragging,
             dragProps,
           }) => (
             <div className="py-4 text-center">
