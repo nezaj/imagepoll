@@ -52,7 +52,7 @@ const genders = ["F", "M", "NB"];
 export default function Vote() {
   const [votes, setVotes] = useState([]);
   const [name, setName] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState(genders[0]);
   const [age, setAge] = useState(null);
   const maxVotes = 5;
   const orderedVotes = arrToOrderedMap(votes);
@@ -85,6 +85,7 @@ export default function Vote() {
           <input
             type="text"
             value={name}
+            placeholder="Jane Doe"
             onChange={(e) => setName(e.target.value)}
             className="outline outline-2 w-32 p-2 text-right"
           />
@@ -110,8 +111,9 @@ export default function Vote() {
           <div className="text-lg flex-1 w-64 py-2">Age</div>
           <input
             type="number"
-            min="8"
+            min="1"
             max="120"
+            placeholder="30"
             value={age}
             onChange={(e) => setAge(e.target.value)}
             className="outline outline-2 w-16 p-2 text-right"
