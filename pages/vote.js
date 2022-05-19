@@ -1,6 +1,7 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { supabase } from "../utils/supabaseClient";
 
 function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
   const order = orderedVotes && orderedVotes[url];
@@ -39,27 +40,48 @@ function arrToOrderedMap(arr) {
 }
 
 const images = [
-  ["/images/arch.jpg", true],
-  ["/images/grass.jpg", true],
-  ["/images/bw.jpg", true],
-  ["/images/sit.jpg", false],
-  ["/images/cafe.jpg", false],
-  ["/images/fancy.jpg", false],
+  "/images/arch.jpg",
+  "/images/grass.jpg",
+  "/images/bw.jpg",
+  "/images/sit.jpg",
+  "/images/cafe.jpg",
+  "/images/fancy.jpg",
 ];
 
 const genders = ["F", "M", "NB"];
 
 export default function Vote() {
+  const [imagePaths, setImagePaths] = useState([]);
   const [votes, setVotes] = useState([]);
   const [name, setName] = useState("");
   const [gender, setGender] = useState(genders[0]);
   const [age, setAge] = useState(null);
-  const maxVotes = 5;
+  const [maxVotes, setMaxVotes] = useState(null);
   const orderedVotes = arrToOrderedMap(votes);
   const canSubmit = name && gender && age;
   const canSubmitClass = canSubmit
     ? "outline outline-2"
     : "bg-slate-500/[0.1] text-black/[0.2]";
+
+  useEffect(() => {
+    supabase
+      .from("polls")
+      .select("max_choices, images")
+      .eq("id", "0ebb9582-e6b5-4fe4-9f4b-313fc24c1e16")
+      .then((res) => {
+        const { data } = res;
+        const { max_choices, images } = data[0];
+        const imagePaths = images.map((i) => {
+          const { data } = supabase.storage.from("photos").getPublicUrl(i);
+          const { publicURL } = data;
+          return publicURL;
+        });
+        setImagePaths(imagePaths);
+        setMaxVotes(max_choices);
+      });
+  }, []);
+
+  console.log("imagePaths", imagePaths);
   return (
     <div>
       <Head>
@@ -71,11 +93,11 @@ export default function Vote() {
       <div className="mx-auto max-w-lg p-4 flex flex-col items-center">
         <div className="text-2xl py-4">Image Poll</div>
         <p>Choose up to {maxVotes} pictures </p>
-        {images.map(([url, isPriority]) => (
+        {imagePaths.map((url, idx) => (
           <UploadedImage
             key={url}
             url={url}
-            isPriority={isPriority}
+            isPriority={idx < 3 ? true : false}
             orderedVotes={orderedVotes}
             onClick={() => setVotes(updateSelection(votes, maxVotes, url))}
           />

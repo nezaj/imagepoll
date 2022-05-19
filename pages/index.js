@@ -2,20 +2,83 @@ import Head from "next/head";
 import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 import "react-toggle/style.css";
+import imageCompression from "browser-image-compression";
+
+function today() {
+  const currentTime = new Date();
+  const month = currentTime.getMonth() + 1;
+  const day = currentTime.getDate();
+  const year = currentTime.getFullYear();
+  return `${month}-${day}-${year}`;
+}
+
+const TODAY = today();
 
 export default function Home() {
   const [images, setImages] = useState([]);
   const [numChoices, setNumChoices] = useState(null);
   const [areResultsShared, setAreResultsShared] = useState(false);
+  const [isPollCreating, setIsPollCreating] = useState(false);
   const [isPollCreated, setIsPollCreated] = useState(false);
+  const [pollId, setPollId] = useState(null);
   const maxUpload = 12;
 
-  const onChange = (imageList, addUpdateIndex) => {
-    // data for submit
-    console.log(imageList, addUpdateIndex);
+  const deleteImages = async () => {
+    const { data: list } = await supabase.storage.from("photos").list();
+    const filesToRemove = list.map((x) => x.name).slice(1);
+    await supabase.storage.from("photos").remove(filesToRemove);
+  };
+
+  const buildPath = (file) => {
+    const fileExt = file.name.split(".").pop();
+    return `${TODAY}-${Math.random()}.${fileExt}`;
+  };
+
+  const uploadImage = async (file, filePath) => {
+    const options = {
+      maxSizeMB: 0.25,
+      useWebWorker: true,
+    };
+    const compressed = await imageCompression(file, options);
+    const { error: uploadError } = await supabase.storage
+      .from("photos")
+      .upload(filePath, compressed);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    return filePath;
+  };
+
+  const createPoll = async () => {
+    setIsPollCreating(true);
+    try {
+      const paths = images.map((i) => buildPath(i.file));
+      images.forEach((i, idx) => uploadImage(i.file, paths[idx]));
+      const newPoll = {
+        images: paths,
+        share_results: areResultsShared,
+        max_choices: numChoices,
+      };
+      const { data } = await supabase.from("polls").insert([newPoll]);
+      console.log("data", data);
+      console.log("dataId", data[0].id);
+      setPollId(data[0].id);
+      setIsPollCreated(true);
+    } catch (error) {
+      // (TODO) Add real error message
+      console.log(error.message);
+    } finally {
+      setIsPollCreating(false);
+    }
+  };
+
+  const onChange = (imageList, _) => {
     setImages(imageList);
-    !numChoices && setNumChoices(imageList.length);
+    !numChoices && imageList.length > 1 && setNumChoices(imageList.length);
   };
 
   return (
@@ -106,29 +169,38 @@ export default function Home() {
             </div>
             {isPollCreated ? (
               <div className="flex flex-col text-center">
-                <div className="text-lg pb-4">
+                <span className="text-lg pb-4">
                   Huzzah! Your poll has been created!
-                </div>
-                <div className="text-sm pb-4">
-                  Send this link for voting
-                  <div className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs">
-                    https://www.imagepoll.com/vote
-                  </div>
-                </div>
-                <div className="text-sm">
+                </span>
+                <span className="text-sm pb-4">Send this link for voting</span>
+                <input
+                  className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
+                  value={`https://www.imagepoll.com/vote/${pollId}`}
+                ></input>
+                <span className="text-sm py-4">
                   Use this link to see results
-                  <div className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs">
-                    https://www.imagepoll.com/resultshttps://www.imagepoll.com/resultshttps://www.imagepoll.com/results
-                  </div>
-                </div>
+                </span>
+                <input
+                  className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
+                  value={`https://www.imagepoll.com/resultshttps://www.imagepoll.com/resultshttps://www.imagepoll.com/results`}
+                ></input>
               </div>
             ) : (
-              <button
-                className="px-16 py-4 border-solid border-2"
-                onClick={() => setIsPollCreated(true)}
-              >
-                Create Poll
-              </button>
+              <>
+                <button
+                  className="px-16 py-4 border-solid border-2"
+                  disabled={isPollCreating}
+                  onClick={createPoll}
+                >
+                  {isPollCreating ? "..." : "Create Poll"}
+                </button>
+                <button
+                  className="px-16 py-4 border-solid border-2"
+                  onClick={() => deleteImages()}
+                >
+                  Delete Images
+                </button>
+              </>
             )}
           </div>
         )}
