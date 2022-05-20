@@ -1,14 +1,12 @@
 import Head from "next/head";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { supabase } from "../utils/supabaseClient";
+import { supabase } from "../../utils/supabaseClient";
 
 const MIN_AGE = 1;
 const MAX_AGE = 120;
 const PLACEHOLDER_AGE = 30;
 const GENDERS = ["F", "M", "NB"];
-
-const POLL_ID = "cd7ec271-fcba-411a-a7f0-d4f175dad5b2";
 
 function updateSelection(votes, maxVotes, newVote) {
   const idx = votes.indexOf(newVote);
@@ -46,11 +44,27 @@ function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
   );
 }
 
-export default function Vote() {
-  // Poll data
-  const [imagePaths, setImagePaths] = useState([]);
-  const [maxVotes, setMaxVotes] = useState(null);
+export async function getServerSideProps({ params }) {
+  const { pid } = params;
+  const [imagePaths, maxVotes] = await supabase
+    .rpc("get_poll_by_id", { pid })
+    .then((res) => {
+      const { data } = res;
+      const { max_choices, images } = data[0];
+      const imagePaths = images.map((i) => {
+        const { data } = supabase.storage.from("photos").getPublicUrl(i);
+        const { publicURL } = data;
+        return publicURL;
+      });
+      return [imagePaths, max_choices];
+    });
 
+  return {
+    props: { pid, imagePaths, maxVotes },
+  };
+}
+
+export default function Vote({ pid, imagePaths, maxVotes }) {
   // Vote data
   const [votes, setVotes] = useState([]);
   const [name, setName] = useState("");
@@ -67,26 +81,11 @@ export default function Vote() {
     ? "outline outline-2"
     : "bg-slate-500/[0.1] text-black/[0.2]";
 
-  useEffect(() => {
-    supabase.rpc("get_poll_by_id", { poll_id: POLL_ID }).then((res) => {
-      const { data } = res;
-      const { max_choices, images } = data[0];
-      const imagePaths = images.map((i) => {
-        const { data } = supabase.storage.from("photos").getPublicUrl(i);
-        const { publicURL } = data;
-        return publicURL;
-      });
-      setImagePaths(imagePaths);
-      setMaxVotes(max_choices);
-    });
-  }, []);
-
   const createVote = async () => {
     setIsVoting(true);
     try {
-      console.log("votes", votes);
       const newVote = {
-        poll_id: POLL_ID,
+        poll_id: pid,
         name,
         age,
         gender,

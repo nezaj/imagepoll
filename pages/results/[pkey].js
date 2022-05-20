@@ -1,9 +1,8 @@
 import Head from "next/head";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { supabase } from "../utils/supabaseClient";
 
-const POLL_KEY = "0b24c83d-aecc-4dfb-8f6e-0c0685cb0d62";
+import { supabase } from "../../utils/supabaseClient";
 
 function scoreVotes(votes, maxChoices) {
   const scored = votes
@@ -40,12 +39,37 @@ function withIgnored(votes, ignoredVoters) {
 
 const genders = ["All", "F", "M", "NB"];
 
-export default function Results() {
-  // Data
-  const [votes, setVotes] = useState([]);
-  const [maxChoices, setMaxChoices] = useState(0);
+// (TODO) Add error handling
+async function fetchPollData(pkey) {
+  return supabase.rpc("get_poll_by_key", { pkey }).then((res) => {
+    const { data } = res;
+    const { max_choices } = data[0];
+    return max_choices;
+  });
+}
 
-  // UI
+// (TODO) Add error handling
+async function fetchPollVotes(pkey) {
+  return supabase.rpc("get_poll_votes", { pkey }).then((res) => {
+    const { data } = res;
+    return data || [];
+  });
+}
+
+export async function getServerSideProps({ params }) {
+  const { pkey } = params;
+  const [maxChoices, votes] = [
+    await fetchPollData(pkey),
+    await fetchPollVotes(pkey),
+  ];
+
+  return {
+    props: { maxChoices, votes },
+  };
+}
+
+export default function Results({ votes, maxChoices }) {
+  // Filters
   const [minAge, setMinAge] = useState(1);
   const [maxAge, setMaxAge] = useState(120);
   const [gender, setGender] = useState(genders[0]);
@@ -57,25 +81,6 @@ export default function Results() {
   const scoredVoters = withIgnored(filteredVotes, ignoredVoters);
   const numVoters = scoredVoters.length;
   const results = scoreVotes(scoredVoters, maxChoices);
-
-  // Fetch poll data
-  // (TODO) Add error handling
-  useEffect(() => {
-    supabase.rpc("get_poll_by_key", { poll_key: POLL_KEY }).then((res) => {
-      const { data } = res;
-      const { max_choices } = data[0];
-      setMaxChoices(max_choices);
-    });
-  }, []);
-
-  // Fetch votes
-  // (TODO) Add error handling
-  useEffect(() => {
-    supabase.rpc("get_poll_votes", { poll_key: POLL_KEY }).then((res) => {
-      const { data } = res;
-      setVotes(data);
-    });
-  }, []);
 
   return (
     <div>
@@ -131,6 +136,7 @@ export default function Results() {
         </div>
         <div className="py-4 w-32">Scored Voters: {numVoters}</div>
         <div className="py-4 grid gap-4 grid-cols-3 justify-items-stretch">
+          {/* (TODO) Render score somewhere? */}
           {results.map(([url, score]) => (
             <div key={url} className="relative w-28 h-28">
               <Image

@@ -10,7 +10,15 @@ function now() {
   return new Date().getTime();
 }
 
-export default function Home() {
+export async function getStaticProps() {
+  const IMAGE_POLL_BASE =
+    process.env.ENV === "dev" ? "localhost:3000" : "https://www.imagepoll.com";
+  return {
+    props: { IMAGE_POLL_BASE },
+  };
+}
+
+export default function Home({ IMAGE_POLL_BASE }) {
   const [images, setImages] = useState([]);
   const [numChoices, setNumChoices] = useState(null);
   const [areResultsShared, setAreResultsShared] = useState(false);
@@ -18,12 +26,6 @@ export default function Home() {
   const [isPollCreated, setIsPollCreated] = useState(false);
   const [pollData, setPollData] = useState(null);
   const maxUpload = 12;
-
-  const deleteImages = async () => {
-    const { data: list } = await supabase.storage.from("photos").list();
-    const filesToRemove = list.map((x) => x.name).slice(1);
-    await supabase.storage.from("photos").remove(filesToRemove);
-  };
 
   const buildPath = (file) => {
     const fileExt = file.name.split(".").pop();
@@ -51,6 +53,9 @@ export default function Home() {
     setIsPollCreating(true);
     try {
       const paths = images.map((i) => buildPath(i.file));
+      // (TODO): Currently this is a fire and forget, but we
+      // may want to wait on the images actually being upload
+      // before returning
       images.forEach((i, idx) => uploadImage(i.file, paths[idx]));
       const newPoll = {
         images: paths,
@@ -76,6 +81,7 @@ export default function Home() {
     !numChoices && imageList.length && setNumChoices(imageList.length);
   };
 
+  console.log("image_poll_base", IMAGE_POLL_BASE);
   return (
     <div>
       <Head>
@@ -170,32 +176,24 @@ export default function Home() {
                 <span className="text-sm pb-4">Send this link for voting</span>
                 <input
                   className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`https://www.imagepoll.com/vote/${pollData.poll_id}`}
+                  value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
                 ></input>
                 <span className="text-sm py-4">
                   Use this link to see results
                 </span>
                 <input
                   className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`https://www.imagepoll.com/results/${pollData.poll_key}`}
+                  value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
                 ></input>
               </div>
             ) : (
-              <>
-                <button
-                  className="px-16 py-4 border-solid border-2"
-                  disabled={isPollCreating}
-                  onClick={createPoll}
-                >
-                  {isPollCreating ? "..." : "Create Poll"}
-                </button>
-                <button
-                  className="px-16 py-4 border-solid border-2"
-                  onClick={() => deleteImages()}
-                >
-                  Delete Images
-                </button>
-              </>
+              <button
+                className="px-16 py-4 border-solid border-2"
+                disabled={isPollCreating}
+                onClick={createPoll}
+              >
+                {isPollCreating ? "..." : "Create Poll"}
+              </button>
             )}
           </div>
         )}
