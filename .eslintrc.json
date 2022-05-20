@@ -1,3 +1,7 @@
 {
-    "extends": ["eslint:recommended", "next"]
+    "extends": ["eslint:recommended", "next"],
+    "rules": {
+        "no-unused-vars": "off",
+        "no-undef": "off"
+    }
 }
