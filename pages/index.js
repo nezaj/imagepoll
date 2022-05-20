@@ -3,6 +3,7 @@ import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
 import "react-toggle/style.css";
 import imageCompression from "browser-image-compression";
 
@@ -121,7 +122,7 @@ export default function Home({ IMAGE_POLL_BASE }) {
               <div className="pt-4 grid gap-4 grid-cols-3">
                 {imageList.map((image, index) => (
                   <div key={image["data_url"]} className="image-item">
-                    <img src={image["data_url"]} alt="" width="100" />
+                    <Image src={image["data_url"]} alt="" width="100" />
                     <div className="image-item__btn-wrapper">
                       <button onClick={() => onImageUpdate(index)}>
                         Update
