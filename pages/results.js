@@ -1,51 +1,9 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { supabase } from "../utils/supabaseClient";
 
-let votes = [
-  {
-    id: "Joe",
-    name: "Joe",
-    gender: "M",
-    age: 30,
-    choices: [
-      "/images/fancy.jpg",
-      "/images/cafe.jpg",
-      "/images/grass.jpg",
-      "/images/bw.jpg",
-      "/images/sit.jpg",
-      "/images/arch.jpg",
-    ],
-  },
-  {
-    id: "Stopa",
-    name: "Stopa",
-    gender: "M",
-    age: 28,
-    choices: [
-      "/images/grass.jpg",
-      "/images/cafe.jpg",
-      "/images/bw.jpg",
-      "/images/fancy.jpg",
-      "/images/sit.jpg",
-      "/images/arch.jpg",
-    ],
-  },
-  {
-    id: "Denise",
-    name: "Denise",
-    gender: "F",
-    age: 28,
-    choices: [
-      "/images/arch.jpg",
-      "/images/grass.jpg",
-      "/images/sit.jpg",
-      "/images/cafe.jpg",
-      "/images/bw.jpg",
-      "/images/fancy.jpg",
-    ],
-  },
-];
+const POLL_KEY = "0b24c83d-aecc-4dfb-8f6e-0c0685cb0d62";
 
 function scoreVotes(votes, maxChoices) {
   const scored = votes
@@ -83,19 +41,41 @@ function withIgnored(votes, ignoredVoters) {
 const genders = ["All", "F", "M", "NB"];
 
 export default function Results() {
+  // Data
+  const [votes, setVotes] = useState([]);
+  const [maxChoices, setMaxChoices] = useState(0);
+
+  // UI
   const [minAge, setMinAge] = useState(1);
   const [maxAge, setMaxAge] = useState(120);
   const [gender, setGender] = useState(genders[0]);
   const [expandedVoters, setExpandedVoters] = useState(new Set([]));
   const [ignoredVoters, setIgnoredVoters] = useState(new Set([]));
 
-  const maxChoices = 6;
-
+  // Computed
   const filteredVotes = withFiltered(votes, gender, minAge, maxAge);
   const scoredVoters = withIgnored(filteredVotes, ignoredVoters);
-
   const numVoters = scoredVoters.length;
   const results = scoreVotes(scoredVoters, maxChoices);
+
+  // Fetch poll data
+  // (TODO) Add error handling
+  useEffect(() => {
+    supabase.rpc("get_poll_by_key", { poll_key: POLL_KEY }).then((res) => {
+      const { data } = res;
+      const { max_choices } = data[0];
+      setMaxChoices(max_choices);
+    });
+  }, []);
+
+  // Fetch votes
+  // (TODO) Add error handling
+  useEffect(() => {
+    supabase.rpc("get_poll_votes", { poll_key: POLL_KEY }).then((res) => {
+      const { data } = res;
+      setVotes(data);
+    });
+  }, []);
 
   return (
     <div>
@@ -153,7 +133,12 @@ export default function Results() {
         <div className="py-4 grid gap-4 grid-cols-3 justify-items-stretch">
           {results.map(([url, score]) => (
             <div key={url} className="relative w-28 h-28">
-              <Image src={url} layout="fill" objectFit="contain" />
+              <Image
+                src={url}
+                layout="fill"
+                objectFit="contain"
+                priority={true}
+              />
             </div>
           ))}
         </div>

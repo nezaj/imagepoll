@@ -3,6 +3,28 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { supabase } from "../utils/supabaseClient";
 
+const MIN_AGE = 1;
+const MAX_AGE = 120;
+const PLACEHOLDER_AGE = 30;
+const GENDERS = ["F", "M", "NB"];
+
+const POLL_ID = "cd7ec271-fcba-411a-a7f0-d4f175dad5b2";
+
+function updateSelection(votes, maxVotes, newVote) {
+  const idx = votes.indexOf(newVote);
+  if (idx > -1) {
+    return votes.filter((v) => v !== newVote);
+  }
+  return votes.concat(newVote).slice(0, maxVotes);
+}
+
+function arrToOrderedMap(arr) {
+  return arr.reduce((xs, x, idx) => {
+    xs[x] = idx + 1;
+    return xs;
+  }, {});
+}
+
 function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
   const order = orderedVotes && orderedVotes[url];
   return (
@@ -24,64 +46,63 @@ function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
   );
 }
 
-function updateSelection(votes, maxVotes, newVote) {
-  const idx = votes.indexOf(newVote);
-  if (idx > -1) {
-    return votes.filter((v) => v !== newVote);
-  }
-  return votes.concat(newVote).slice(0, maxVotes);
-}
-
-function arrToOrderedMap(arr) {
-  return arr.reduce((xs, x, idx) => {
-    xs[x] = idx + 1;
-    return xs;
-  }, {});
-}
-
-const images = [
-  "/images/arch.jpg",
-  "/images/grass.jpg",
-  "/images/bw.jpg",
-  "/images/sit.jpg",
-  "/images/cafe.jpg",
-  "/images/fancy.jpg",
-];
-
-const genders = ["F", "M", "NB"];
-
 export default function Vote() {
+  // Poll data
   const [imagePaths, setImagePaths] = useState([]);
+  const [maxVotes, setMaxVotes] = useState(null);
+
+  // Vote data
   const [votes, setVotes] = useState([]);
   const [name, setName] = useState("");
-  const [gender, setGender] = useState(genders[0]);
-  const [age, setAge] = useState(null);
-  const [maxVotes, setMaxVotes] = useState(null);
+  const [gender, setGender] = useState(GENDERS[0]);
+  const [age, setAge] = useState("");
+
+  // UI
+  const [isVoting, setIsVoting] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+
   const orderedVotes = arrToOrderedMap(votes);
-  const canSubmit = name && gender && age;
+  const canSubmit = name && gender && age && votes.length && !isVoting;
   const canSubmitClass = canSubmit
     ? "outline outline-2"
     : "bg-slate-500/[0.1] text-black/[0.2]";
 
   useEffect(() => {
-    supabase
-      .from("polls")
-      .select("max_choices, images")
-      .eq("id", "0ebb9582-e6b5-4fe4-9f4b-313fc24c1e16")
-      .then((res) => {
-        const { data } = res;
-        const { max_choices, images } = data[0];
-        const imagePaths = images.map((i) => {
-          const { data } = supabase.storage.from("photos").getPublicUrl(i);
-          const { publicURL } = data;
-          return publicURL;
-        });
-        setImagePaths(imagePaths);
-        setMaxVotes(max_choices);
+    supabase.rpc("get_poll_by_id", { poll_id: POLL_ID }).then((res) => {
+      const { data } = res;
+      const { max_choices, images } = data[0];
+      const imagePaths = images.map((i) => {
+        const { data } = supabase.storage.from("photos").getPublicUrl(i);
+        const { publicURL } = data;
+        return publicURL;
       });
+      setImagePaths(imagePaths);
+      setMaxVotes(max_choices);
+    });
   }, []);
 
-  console.log("imagePaths", imagePaths);
+  const createVote = async () => {
+    setIsVoting(true);
+    try {
+      console.log("votes", votes);
+      const newVote = {
+        poll_id: POLL_ID,
+        name,
+        age,
+        gender,
+        choices: votes,
+      };
+      await supabase.from("votes").insert([newVote]);
+      // (TODO) Add confirmation UI after voting
+      setHasVoted(true);
+    } catch (error) {
+      // (TODO) Add real error message
+      console.log(error.message);
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
   return (
     <div>
       <Head>
@@ -115,7 +136,7 @@ export default function Vote() {
         <div className="py-4 flex">
           <div className="text-lg w-16 py-2">Gender</div>
           <span className="w-64 text-right">
-            {genders.map((g) => {
+            {GENDERS.map((g) => {
               const selectedClass = g === gender ? "bg-sky-500/[0.5]" : "";
               return (
                 <button
@@ -133,9 +154,9 @@ export default function Vote() {
           <div className="text-lg flex-1 w-64 py-2">Age</div>
           <input
             type="number"
-            min="1"
-            max="120"
-            placeholder="30"
+            min={MIN_AGE}
+            max={MAX_AGE}
+            placeholder={PLACEHOLDER_AGE}
             value={age}
             onChange={(e) => setAge(e.target.value)}
             className="outline outline-2 w-16 p-2 text-right"
@@ -143,10 +164,13 @@ export default function Vote() {
         </div>
         <button
           disabled={!canSubmit}
+          onClick={createVote}
           className={`mt-4 px-16 py-4 ${canSubmitClass}`}
         >
-          Submit Votes
+          {isVoting ? "..." : "Submit"}
         </button>
+
+        {hasVoted && <div className="py-4">Thank you for voting!</div>}
       </div>
     </div>
   );

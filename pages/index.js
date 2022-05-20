@@ -6,15 +6,9 @@ import { supabase } from "../utils/supabaseClient";
 import "react-toggle/style.css";
 import imageCompression from "browser-image-compression";
 
-function today() {
-  const currentTime = new Date();
-  const month = currentTime.getMonth() + 1;
-  const day = currentTime.getDate();
-  const year = currentTime.getFullYear();
-  return `${month}-${day}-${year}`;
+function now() {
+  return new Date().getTime();
 }
-
-const TODAY = today();
 
 export default function Home() {
   const [images, setImages] = useState([]);
@@ -22,7 +16,7 @@ export default function Home() {
   const [areResultsShared, setAreResultsShared] = useState(false);
   const [isPollCreating, setIsPollCreating] = useState(false);
   const [isPollCreated, setIsPollCreated] = useState(false);
-  const [pollId, setPollId] = useState(null);
+  const [pollData, setPollData] = useState(null);
   const maxUpload = 12;
 
   const deleteImages = async () => {
@@ -33,7 +27,7 @@ export default function Home() {
 
   const buildPath = (file) => {
     const fileExt = file.name.split(".").pop();
-    return `${TODAY}-${Math.random()}.${fileExt}`;
+    return `${now()}-${Math.random()}.${fileExt}`;
   };
 
   const uploadImage = async (file, filePath) => {
@@ -64,9 +58,10 @@ export default function Home() {
         max_choices: numChoices,
       };
       const { data } = await supabase.from("polls").insert([newPoll]);
-      console.log("data", data);
-      console.log("dataId", data[0].id);
-      setPollId(data[0].id);
+      setPollData({
+        poll_id: data[0].id,
+        poll_key: data[0].poll_key,
+      });
       setIsPollCreated(true);
     } catch (error) {
       // (TODO) Add real error message
@@ -78,7 +73,7 @@ export default function Home() {
 
   const onChange = (imageList, _) => {
     setImages(imageList);
-    !numChoices && imageList.length > 1 && setNumChoices(imageList.length);
+    !numChoices && imageList.length && setNumChoices(imageList.length);
   };
 
   return (
@@ -175,14 +170,14 @@ export default function Home() {
                 <span className="text-sm pb-4">Send this link for voting</span>
                 <input
                   className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`https://www.imagepoll.com/vote/${pollId}`}
+                  value={`https://www.imagepoll.com/vote/${pollData.poll_id}`}
                 ></input>
                 <span className="text-sm py-4">
                   Use this link to see results
                 </span>
                 <input
                   className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`https://www.imagepoll.com/resultshttps://www.imagepoll.com/resultshttps://www.imagepoll.com/results`}
+                  value={`https://www.imagepoll.com/results/${pollData.poll_key}`}
                 ></input>
               </div>
             ) : (
