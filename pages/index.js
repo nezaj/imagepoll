@@ -3,8 +3,12 @@ import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import "react-toggle/style.css";
 import imageCompression from "browser-image-compression";
+import { CopyToClipboard } from "react-copy-to-clipboard";
+import { ToastContainer, toast, Flip } from "react-toastify";
+
+import "react-toastify/dist/ReactToastify.css";
+import "react-toggle/style.css";
 
 function now() {
   return new Date().getTime();
@@ -16,6 +20,23 @@ export async function getStaticProps() {
   return {
     props: { IMAGE_POLL_BASE },
   };
+}
+
+function successToast(text) {
+  toast.success(text, {
+    position: "top-right",
+    autoClose: 1000,
+    hideProgressBar: true,
+    closeOnClick: false,
+    pauseOnHover: false,
+    pauseOnFocusLoss: false,
+    draggable: false,
+    progress: false,
+    theme: "colored",
+    icon: false,
+    transition: Flip,
+    closeButton: false,
+  });
 }
 
 export default function Home({ IMAGE_POLL_BASE }) {
@@ -175,17 +196,34 @@ export default function Home({ IMAGE_POLL_BASE }) {
                   Huzzah! Your poll has been created!
                 </span>
                 <span className="text-sm pb-4">Send this link for voting</span>
-                <input
-                  className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
-                ></input>
+                <CopyToClipboard
+                  text={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
+                >
+                  <input
+                    type="text"
+                    className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
+                    value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
+                    onClick={(e) => {
+                      e.target.setSelectionRange(0, e.target.value.length);
+                      successToast("Vote link copied!");
+                    }}
+                  ></input>
+                </CopyToClipboard>
                 <span className="text-sm py-4">
                   Use this link to see results
                 </span>
-                <input
-                  className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs"
-                  value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
-                ></input>
+                <CopyToClipboard
+                  text={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
+                >
+                  <input
+                    className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
+                    value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
+                    onClick={(e) => {
+                      e.target.setSelectionRange(0, e.target.value.length);
+                      successToast("Results link copied!");
+                    }}
+                  ></input>
+                </CopyToClipboard>
               </div>
             ) : (
               <button
@@ -199,6 +237,7 @@ export default function Home({ IMAGE_POLL_BASE }) {
           </div>
         )}
       </div>
+      <ToastContainer style={{ textAlign: "center" }} />
     </div>
   );
 }
