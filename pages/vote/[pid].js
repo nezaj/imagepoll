@@ -228,7 +228,6 @@ export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
               value={`${IMAGE_POLL_BASE}/results/${pollKey}`}
               readOnly
               onClick={(e) => {
-                e.target.setSelectionRange(0, e.target.value.length);
                 successToast("Results link copied!", 5000);
               }}
             ></input>

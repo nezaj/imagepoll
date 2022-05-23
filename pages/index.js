@@ -196,7 +196,6 @@ export default function Home() {
                 value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
                 readOnly
                 onClick={(e) => {
-                  e.target.setSelectionRange(0, e.target.value.length);
                   successToast("Vote link copied!");
                 }}
               ></input>
@@ -210,7 +209,6 @@ export default function Home() {
                 value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
                 readOnly
                 onClick={(e) => {
-                  e.target.setSelectionRange(0, e.target.value.length);
                   successToast("Results link copied!", 5000);
                 }}
               ></input>
