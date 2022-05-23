@@ -26,7 +26,7 @@ function arrToOrderedMap(arr) {
 function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
   const order = orderedVotes && orderedVotes[url];
   return (
-    <div className="py-2" onClick={onClick}>
+    <div className="py-2 cursor-pointer" onClick={onClick}>
       <div className="relative w-80 h-80">
         <Image
           src={url}
@@ -112,7 +112,10 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
 
       <div className="mx-auto max-w-lg p-4 flex flex-col items-center">
         <div className="text-2xl py-4">Image Poll</div>
-        <p>Choose up to {maxVotes} pictures </p>
+        <div className="text-md py-2">Choose up to {maxVotes} pictures</div>
+        <div className="text-center text-xs pb-4">
+          (1 being your top choice, {maxVotes} being your last choice)
+        </div>
         {imagePaths.map((url, idx) => (
           <UploadedImage
             key={url}
@@ -161,6 +164,23 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
             className="outline outline-2 w-16 p-2 text-right"
           />
         </div>
+        {votes.length > 0 && (
+          <div className="text-center">
+            <p>Your choices</p>
+            <div className="py-4 grid gap-4 grid-cols-3 ">
+              {votes.map((url, idx) => (
+                <div key={url}>
+                  <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] text-2xl z-10 font-extralight text-xs">
+                    {idx + 1}
+                  </div>
+                  <div className="relative w-28 h-28">
+                    <Image src={url} layout="fill" objectFit="contain" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <button
           disabled={!canSubmit}
           onClick={createVote}
