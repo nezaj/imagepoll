@@ -4,6 +4,7 @@ import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import { IMAGE_POLL_BASE } from "../utils/config";
 import { StyledToastContainer, successToast } from "../utils/toast";
 import imageCompression from "browser-image-compression";
 import { CopyToClipboard } from "react-copy-to-clipboard";
@@ -14,15 +15,7 @@ function now() {
   return new Date().getTime();
 }
 
-export async function getStaticProps() {
-  const IMAGE_POLL_BASE =
-    process.env.ENV === "dev" ? "localhost:3000" : "https://www.imagepoll.com";
-  return {
-    props: { IMAGE_POLL_BASE },
-  };
-}
-
-export default function Home({ IMAGE_POLL_BASE }) {
+export default function Home() {
   const { router } = useRouter();
   const [images, setImages] = useState([]);
   const [numChoices, setNumChoices] = useState(null);
@@ -72,13 +65,13 @@ export default function Home({ IMAGE_POLL_BASE }) {
         poll_id: data[0].id,
         poll_key: data[0].poll_key,
       });
+      successToast("Your poll has been created!");
       setIsPollCreated(true);
     } catch (error) {
       // (TODO) Add real error message
       console.log(error.message);
     } finally {
       setIsPollCreating(false);
-      successToast("Your poll has been created!");
     }
   };
 
@@ -215,6 +208,7 @@ export default function Home({ IMAGE_POLL_BASE }) {
               <input
                 className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
                 value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
+                readOnly
                 onClick={(e) => {
                   e.target.setSelectionRange(0, e.target.value.length);
                   successToast("Results link copied!", 5000);

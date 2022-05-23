@@ -2,6 +2,9 @@ import Head from "next/head";
 import { useState } from "react";
 import Image from "next/image";
 import { supabase } from "../../utils/supabaseClient";
+import { IMAGE_POLL_BASE } from "../../utils/config";
+import { StyledToastContainer, successToast } from "../../utils/toast";
+import { CopyToClipboard } from "react-copy-to-clipboard";
 
 const MIN_AGE = 1;
 const MAX_AGE = 120;
@@ -46,25 +49,25 @@ function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
 
 export async function getServerSideProps({ params }) {
   const { pid } = params;
-  const [imagePaths, maxVotes] = await supabase
+  const [imagePaths, maxVotes, pollKey] = await supabase
     .rpc("get_poll_by_id", { pid })
     .then((res) => {
       const { data } = res;
-      const { max_choices, images } = data[0];
+      const { max_choices, images, poll_key } = data[0];
       const imagePaths = images.map((i) => {
         const { data } = supabase.storage.from("photos").getPublicUrl(i);
         const { publicURL } = data;
         return publicURL;
       });
-      return [imagePaths, max_choices];
+      return [imagePaths, max_choices, poll_key];
     });
 
   return {
-    props: { pid, imagePaths, maxVotes },
+    props: { pid, imagePaths, maxVotes, pollKey },
   };
 }
 
-export default function Vote({ pid, imagePaths, maxVotes }) {
+export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
   // Vote data
   const [votes, setVotes] = useState([]);
   const [name, setName] = useState("");
@@ -92,7 +95,7 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
         choices: votes,
       };
       await supabase.from("votes").insert([newVote]);
-      // (TODO) Add confirmation UI after voting
+      successToast("Vote submitted!", 5000)
       setHasVoted(true);
     } catch (error) {
       // (TODO) Add real error message
@@ -110,6 +113,7 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
+      {!hasVoted && (
       <div className="mx-auto max-w-lg p-4 flex flex-col items-center">
         <div className="text-2xl py-4">Image Poll</div>
         <div className="text-md py-2">Choose up to {maxVotes} pictures</div>
@@ -170,7 +174,7 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
             <div className="py-4 grid gap-4 grid-cols-3 ">
               {votes.map((url, idx) => (
                 <div key={url}>
-                  <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] text-2xl z-10 font-extralight text-xs">
+                  <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] text-xs z-10">
                     {idx + 1}
                   </div>
                   <div className="relative w-28 h-28">
@@ -188,9 +192,51 @@ export default function Vote({ pid, imagePaths, maxVotes }) {
         >
           {isVoting ? "..." : "Submit"}
         </button>
-
-        {hasVoted && <div className="py-4">Thank you for voting!</div>}
       </div>
+      )}
+    {hasVoted && (
+      <div className="flex flex-col h-screen justify-center text-center">
+        <span className="text-2xl">Thank you for voting!</span>
+        <div className="text-center">
+          <p div className="py-4">Your submission</p>
+          <div className="flex flex-col mx-4 text-left text-xs">
+            <p>Name: {name}</p>
+            <p>Gender: {gender}</p>
+            <p>Age: {age}</p>
+          </div>
+          <div className="p-4 grid gap-4 grid-cols-3">
+            {votes.map((url, idx) => (
+              <div key={url}>
+                <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] z-10 text-xs">
+                  {idx + 1}
+                </div>
+                <div className="relative w-32 h-32">
+                  <Image src={url} layout="fill" objectFit="contain" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {pollKey && (
+          <div>
+          <div className="py-4">You can see the results for this poll at this link</div>
+          <CopyToClipboard
+            text={`${IMAGE_POLL_BASE}/results/${pollKey}`}
+          >
+            <input
+              className="px-4 py-4 border-solid border-2 my-2 truncate cursor-pointer text-center text-sm w-80"
+              value={`${IMAGE_POLL_BASE}/results/${pollKey}`}
+              readOnly
+              onClick={(e) => {
+                e.target.setSelectionRange(0, e.target.value.length);
+                successToast("Results link copied!", 5000);
+              }}
+            ></input>
+          </CopyToClipboard>
+        </div>
+        )}
+      </div>)}
+      <StyledToastContainer />
     </div>
   );
 }
