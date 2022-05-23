@@ -1,13 +1,13 @@
 import Head from "next/head";
+import { useRouter } from 'next/router'
 import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import { StyledToastContainer, successToast } from "../utils/toast";
 import imageCompression from "browser-image-compression";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import { ToastContainer, toast, Flip } from "react-toastify";
 
-import "react-toastify/dist/ReactToastify.css";
 import "react-toggle/style.css";
 
 function now() {
@@ -22,24 +22,8 @@ export async function getStaticProps() {
   };
 }
 
-function successToast(text) {
-  toast.success(text, {
-    position: "top-right",
-    autoClose: 1000,
-    hideProgressBar: true,
-    closeOnClick: false,
-    pauseOnHover: false,
-    pauseOnFocusLoss: false,
-    draggable: false,
-    progress: false,
-    theme: "colored",
-    icon: false,
-    transition: Flip,
-    closeButton: false,
-  });
-}
-
 export default function Home({ IMAGE_POLL_BASE }) {
+  const { router } = useRouter();
   const [images, setImages] = useState([]);
   const [numChoices, setNumChoices] = useState(null);
   const [areResultsShared, setAreResultsShared] = useState(false);
@@ -94,6 +78,7 @@ export default function Home({ IMAGE_POLL_BASE }) {
       console.log(error.message);
     } finally {
       setIsPollCreating(false);
+      successToast("Your poll has been created!");
     }
   };
 
@@ -102,7 +87,6 @@ export default function Home({ IMAGE_POLL_BASE }) {
     !numChoices && imageList.length && setNumChoices(imageList.length);
   };
 
-  console.log("image_poll_base", IMAGE_POLL_BASE);
   return (
     <div>
       <Head>
@@ -112,53 +96,58 @@ export default function Home({ IMAGE_POLL_BASE }) {
       </Head>
 
       <div className="mx-auto max-w-lg px-4 flex flex-col items-center">
-        <div className="text-2xl py-4">Image Poll</div>
-        <div className="text-lg text-center">
-          Image Poll enables you to ask your community to rank your photos. Use
-          this to figure what is best for your dating profile, portfolio, etc.
-        </div>
-        <ImageUploading
-          multiple
-          value={images}
-          onChange={onChange}
-          maxNumber={maxUpload}
-          dataURLKey="data_url"
-        >
-          {({
-            imageList,
-            onImageUpload,
-            onImageUpdate,
-            onImageRemove,
-            dragProps,
-          }) => (
-            <div className="py-4 text-center">
-              <button
-                className="px-16 py-4 border-solid border-2"
-                onClick={onImageUpload}
-                {...dragProps}
-              >
-                Upload photos
-              </button>
-              <div className="pt-4 grid gap-4 grid-cols-3">
-                {imageList.map((image, index) => (
-                  <div key={image["data_url"]} className="image-item">
-                    {/* (TODO) Use Next's Image component */}
-                    <img src={image["data_url"]} alt="" width="100" />
-                    <div className="image-item__btn-wrapper">
-                      <button onClick={() => onImageUpdate(index)}>
-                        Update
-                      </button>
-                      <button onClick={() => onImageRemove(index)}>
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {!isPollCreated && (
+          <div>
+            <div className="text-2xl py-4 text-center">Image Poll</div>
+            <div className="text-lg text-center">
+              Image Poll enables you to ask your community to rank your photos.
+              Use this to figure what is best for your dating profile,
+              portfolio, etc.
             </div>
-          )}
-        </ImageUploading>
-        {images.length > 1 && (
+            <ImageUploading
+              multiple
+              value={images}
+              onChange={onChange}
+              maxNumber={maxUpload}
+              dataURLKey="data_url"
+            >
+              {({
+                imageList,
+                onImageUpload,
+                onImageUpdate,
+                onImageRemove,
+                dragProps,
+              }) => (
+                <div className="py-4 text-center">
+                  <button
+                    className="px-16 py-4 border-solid border-2"
+                    onClick={onImageUpload}
+                    {...dragProps}
+                  >
+                    Upload photos
+                  </button>
+                  <div className="pt-4 grid gap-4 grid-cols-3">
+                    {imageList.map((image, index) => (
+                      <div key={image["data_url"]} className="image-item">
+                        {/* (TODO) Use Next's Image component */}
+                        <img src={image["data_url"]} alt="" width="100" />
+                        <div className="image-item__btn-wrapper">
+                          <button onClick={() => onImageUpdate(index)}>
+                            Update
+                          </button>
+                          <button onClick={() => onImageRemove(index)}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </ImageUploading>
+          </div>
+        )}
+        {!isPollCreated && images.length > 1 && (
           <div className="text-center py-4">
             <div className="text-2xl py-4">Max Choices</div>
             <div className="flex justify-center">
@@ -190,54 +179,55 @@ export default function Home({ IMAGE_POLL_BASE }) {
                 />
               </label>
             </div>
-            {isPollCreated ? (
-              <div className="flex flex-col text-center">
-                <span className="text-lg pb-4">
-                  Huzzah! Your poll has been created!
-                </span>
-                <span className="text-sm pb-4">Send this link for voting</span>
-                <CopyToClipboard
-                  text={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
-                >
-                  <input
-                    type="text"
-                    className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
-                    value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
-                    onClick={(e) => {
-                      e.target.setSelectionRange(0, e.target.value.length);
-                      successToast("Vote link copied!");
-                    }}
-                  ></input>
-                </CopyToClipboard>
-                <span className="text-sm py-4">
-                  Use this link to see results
-                </span>
-                <CopyToClipboard
-                  text={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
-                >
-                  <input
-                    className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
-                    value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
-                    onClick={(e) => {
-                      e.target.setSelectionRange(0, e.target.value.length);
-                      successToast("Results link copied!");
-                    }}
-                  ></input>
-                </CopyToClipboard>
-              </div>
-            ) : (
-              <button
-                className="px-16 py-4 border-solid border-2"
-                disabled={isPollCreating}
-                onClick={createPoll}
-              >
-                {isPollCreating ? "..." : "Create Poll"}
-              </button>
-            )}
+            <button
+              className="px-16 py-4 border-solid border-2"
+              disabled={isPollCreating}
+              onClick={createPoll}
+            >
+              {isPollCreating ? "..." : "Create Poll"}
+            </button>
+          </div>
+        )}
+        {isPollCreated && (
+          <div className="flex flex-col h-screen justify-center text-center">
+            <span className="text-lg py-4">
+              Huzzah! Your poll has been created!
+            </span>
+            <span className="text-sm pb-4">Send this link for voting</span>
+            <CopyToClipboard
+              text={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
+            >
+              <input
+                type="text"
+                className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
+                value={`${IMAGE_POLL_BASE}/vote/${pollData.poll_id}`}
+                readOnly
+                onClick={(e) => {
+                  e.target.setSelectionRange(0, e.target.value.length);
+                  successToast("Vote link copied!");
+                }}
+              ></input>
+            </CopyToClipboard>
+            <span className="text-sm py-4">Use this link to see results</span>
+            <CopyToClipboard
+              text={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
+            >
+              <input
+                className="px-4 py-4 border-solid border-2 my-2 truncate max-w-xs cursor-pointer"
+                value={`${IMAGE_POLL_BASE}/results/${pollData.poll_key}`}
+                onClick={(e) => {
+                  e.target.setSelectionRange(0, e.target.value.length);
+                  successToast("Results link copied!", 5000);
+                }}
+              ></input>
+            </CopyToClipboard>
+            <div className="text-sm py-4">
+              Or <a href="/" className="text-sky-500 cursor-pointer">create a new poll</a>
+            </div>
           </div>
         )}
       </div>
-      <ToastContainer style={{ textAlign: "center" }} />
+      <StyledToastContainer />
     </div>
   );
 }
