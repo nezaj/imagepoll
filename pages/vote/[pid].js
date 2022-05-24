@@ -5,18 +5,21 @@ import { supabase } from "../../utils/supabaseClient";
 import { IMAGE_POLL_BASE } from "../../utils/config";
 import { StyledToastContainer, successToast } from "../../utils/toast";
 import { CopyToClipboard } from "react-copy-to-clipboard";
+import { useLocalStorageAt } from "../../utils/hooks"
+
+const LOCAL_VOTES_KEY = "imagepoll__votes";
 
 const MIN_AGE = 1;
 const MAX_AGE = 120;
 const PLACEHOLDER_AGE = 30;
 const GENDERS = ["F", "M", "NB"];
 
-function updateSelection(votes, maxVotes, newVote) {
-  const idx = votes.indexOf(newVote);
+function updateSelection(choices, maxChoices, newVote) {
+  const idx = choices.indexOf(newVote);
   if (idx > -1) {
-    return votes.filter((v) => v !== newVote);
+    return choices.filter((v) => v !== newVote);
   }
-  return votes.concat(newVote).slice(0, maxVotes);
+  return choices.concat(newVote).slice(0, maxChoices);
 }
 
 function arrToOrderedMap(arr) {
@@ -26,8 +29,8 @@ function arrToOrderedMap(arr) {
   }, {});
 }
 
-function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
-  const order = orderedVotes && orderedVotes[url];
+function UploadedImage({ url, isPriority, onClick, orderedChoices }) {
+  const order = orderedChoices && orderedChoices[url];
   return (
     <div className="py-2 cursor-pointer" onClick={onClick}>
       <div className="relative w-80 h-80">
@@ -49,7 +52,7 @@ function UploadedImage({ url, isPriority, onClick, orderedVotes }) {
 
 export async function getServerSideProps({ params }) {
   const { pid } = params;
-  const [imagePaths, maxVotes, pollKey] = await supabase
+  const [imagePaths, maxChoices, pollKey] = await supabase
     .rpc("get_poll_by_id", { pid })
     .then((res) => {
       const { data } = res;
@@ -63,23 +66,28 @@ export async function getServerSideProps({ params }) {
     });
 
   return {
-    props: { pid, imagePaths, maxVotes, pollKey },
+    props: { pid, imagePaths, maxChoices, pollKey },
   };
 }
 
-export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
-  // Vote data
-  const [votes, setVotes] = useState([]);
-  const [name, setName] = useState("");
-  const [gender, setGender] = useState(GENDERS[0]);
-  const [age, setAge] = useState("");
+const initialVote = {
+  choices: [],
+  name: "",
+  gender: GENDERS[0],
+  age: ""
+}
+
+export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
+  const [voteData, setVoteData] = useLocalStorageAt([LOCAL_VOTES_KEY, pid], initialVote);
+  const { choices, name, gender, age } = voteData || initialVote;
+  const [setChoices, setName, setGender, setAge ] = ["choices", "name", "gender", "age"].map(key => (newVal) => setVoteData([LOCAL_VOTES_KEY, pid, key], newVal));
 
   // UI
   const [isVoting, setIsVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
 
-  const orderedVotes = arrToOrderedMap(votes);
-  const canSubmit = name && gender && age && votes.length && !isVoting;
+  const orderedChoices = arrToOrderedMap(choices);
+  const canSubmit = name && gender && age && choices.length && !isVoting;
   const canSubmitClass = canSubmit
     ? "outline outline-2"
     : "bg-slate-500/[0.1] text-black/[0.2]";
@@ -92,9 +100,9 @@ export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
         name,
         age,
         gender,
-        choices: votes,
+        choices,
       };
-      await supabase.from("votes").insert([newVote]);
+      const { data } = await supabase.from("votes").insert([newVote])
       successToast("Vote submitted!", 5000)
       setHasVoted(true);
     } catch (error) {
@@ -116,17 +124,17 @@ export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
       {!hasVoted && (
       <div className="mx-auto max-w-lg p-4 flex flex-col items-center">
         <div className="text-2xl py-4">Image Poll</div>
-        <div className="text-md py-2">Choose up to {maxVotes} pictures</div>
+        <div className="text-md py-2">Choose up to {maxChoices} pictures</div>
         <div className="text-center text-xs pb-4">
-          (1 being your top choice, {maxVotes} being your last choice)
+          (1 being your top choice, {maxChoices} being your last choice)
         </div>
         {imagePaths.map((url, idx) => (
           <UploadedImage
             key={url}
             url={url}
             isPriority={idx < 3 ? true : false}
-            orderedVotes={orderedVotes}
-            onClick={() => setVotes(updateSelection(votes, maxVotes, url))}
+            orderedChoices={orderedChoices}
+            onClick={() => setChoices(updateSelection(choices, maxChoices, url))}
           />
         ))}
         <div className="py-4 flex">
@@ -168,11 +176,11 @@ export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
             className="outline outline-2 w-16 p-2 text-right"
           />
         </div>
-        {votes.length > 0 && (
+        {choices.length > 0 && (
           <div className="text-center">
             <p>Your choices</p>
             <div className="py-4 grid gap-4 grid-cols-3 ">
-              {votes.map((url, idx) => (
+              {choices.map((url, idx) => (
                 <div key={url}>
                   <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] text-xs z-10">
                     {idx + 1}
@@ -205,7 +213,7 @@ export default function Vote({ pid, imagePaths, maxVotes, pollKey}) {
             <p>Age: {age}</p>
           </div>
           <div className="p-4 grid gap-4 grid-cols-3">
-            {votes.map((url, idx) => (
+            {choices.map((url, idx) => (
               <div key={url}>
                 <div className="absolute px-2 py-1 rounded-full text-center bg-sky-500/[0.5] z-10 text-xs">
                   {idx + 1}
