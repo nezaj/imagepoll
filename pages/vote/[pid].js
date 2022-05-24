@@ -71,6 +71,7 @@ export async function getServerSideProps({ params }) {
 }
 
 const initialVote = {
+  id: null,
   choices: [],
   name: "",
   gender: GENDERS[0],
@@ -79,8 +80,8 @@ const initialVote = {
 
 export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
   const [voteData, setVoteData] = useLocalStorageAt([LOCAL_VOTES_KEY, pid], initialVote);
-  const { choices, name, gender, age } = voteData || initialVote;
-  const [setChoices, setName, setGender, setAge ] = ["choices", "name", "gender", "age"].map(key => (newVal) => setVoteData([LOCAL_VOTES_KEY, pid, key], newVal));
+  const { id, choices, name, gender, age } = voteData || initialVote;
+  const [setId, setChoices, setName, setGender, setAge ] = ["id", "choices", "name", "gender", "age"].map(key => (newVal) => setVoteData([LOCAL_VOTES_KEY, pid, key], newVal));
 
   // UI
   const [isVoting, setIsVoting] = useState(false);
@@ -95,15 +96,31 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
   const createVote = async () => {
     setIsVoting(true);
     try {
-      const newVote = {
-        poll_id: pid,
-        name,
-        age,
-        gender,
-        choices,
-      };
-      const { data } = await supabase.from("votes").insert([newVote])
-      successToast("Vote submitted!", 5000)
+      if (!id) {
+        // Create new vote
+        const newVote = {
+          poll_id: pid,
+          name,
+          age,
+          gender,
+          choices,
+        };
+        const { data } = await supabase.from("votes").insert([newVote])
+        setId(data[0].id);
+        successToast("Vote submitted!", 5000)
+      } else {
+        // edit existing voting
+        const updatedVote = {
+          id,
+          poll_id: pid,
+          name,
+          age,
+          gender,
+          choices,
+        }
+        await supabase.from("votes").upsert(updatedVote)
+        successToast("Vote updated!", 5000)
+      }
       setHasVoted(true);
     } catch (error) {
       // (TODO) Add real error message
@@ -198,7 +215,7 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
           onClick={createVote}
           className={`mt-4 px-16 py-4 ${canSubmitClass}`}
         >
-          {isVoting ? "..." : "Submit"}
+          {isVoting ? "..." : id ? "Update" : "Submit"}
         </button>
       </div>
       )}
@@ -242,6 +259,9 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
           </CopyToClipboard>
         </div>
         )}
+            <div className="py-2 text-sm"><a href={`/vote/${pid}`} className="text-sky-500 cursor-pointer">Update your submission</a></div>
+            <div className="py-2 text-sm"><a href="/" className="text-sky-500 cursor-pointer">Create your own poll</a></div>
+
       </div>)}
       <StyledToastContainer />
     </div>
