@@ -3,6 +3,9 @@ import { useState } from "react";
 import Image from "next/image";
 
 import { supabase } from "../../utils/supabaseClient";
+import { useLocalStorageAt } from "../../utils/hooks"
+
+const LOCAL_RESULTS_KEY = 'imagepoll__results';
 
 function scoreVotes(votes, maxChoices) {
   const scored = votes
@@ -34,10 +37,11 @@ function withFiltered(votes, gender, minAge, maxAge) {
 }
 
 function withIgnored(votes, ignoredVoters) {
-  return votes.filter((v) => !ignoredVoters.has(v.id));
+  const ignored = new Set(ignoredVoters);
+  return votes.filter((v) => !ignored.has(v.id));
 }
 
-const genders = ["All", "F", "M", "NB"];
+const GENDERS = ["All", "F", "M", "NB"];
 
 // (TODO) Add error handling
 async function fetchPollData(pkey) {
@@ -64,17 +68,29 @@ export async function getServerSideProps({ params }) {
   ];
 
   return {
-    props: { maxChoices, votes },
+    props: { maxChoices, votes, pkey },
   };
 }
 
-export default function Results({ votes, maxChoices }) {
-  // Filters
-  const [minAge, setMinAge] = useState(1);
-  const [maxAge, setMaxAge] = useState(120);
-  const [gender, setGender] = useState(genders[0]);
-  const [expandedVoters, setExpandedVoters] = useState(new Set([]));
-  const [ignoredVoters, setIgnoredVoters] = useState(new Set([]));
+const initialFilters = {
+  minAge: 1,
+  maxAge: 120,
+  gender: GENDERS[0],
+  expandedVotersArr: [],
+  ignoredVotersArr: []
+}
+
+export default function Results({ votes, maxChoices, pkey }) {
+  const [resultsData, setResultsData] = useLocalStorageAt([LOCAL_RESULTS_KEY, pkey], initialFilters);
+  const { minAge, maxAge, gender, expandedVotersArr, ignoredVotersArr } = resultsData;
+  const [setMinAge, setMaxAge, setGender, setExpandedVotersArr, setIgnoredVotersArr] = Object.keys(initialFilters).map(key => (newVal) => setResultsData([LOCAL_RESULTS_KEY, pkey, key], newVal));
+
+  // (TODO): Get rid of sets. I used a set originally because I found it
+  // easier for updating and thought would be more performant. But once I added
+  // localstorage I couldn't serialize set. I still made the set work, but
+  // I think this should just be removed and I operate on lists only
+  const ignoredVoters = new Set(ignoredVotersArr);
+  const expandedVoters = new Set(expandedVotersArr);
 
   // Computed
   const filteredVotes = withFiltered(votes, gender, minAge, maxAge);
@@ -120,7 +136,7 @@ export default function Results({ votes, maxChoices }) {
         <div className="flex py-4">
           <div className="w-32 justify-start py-2">Gender</div>
           <div className="w-64 justify-end flex">
-            {genders.map((g) => {
+            {GENDERS.map((g) => {
               const selectedClass = g === gender ? "bg-sky-500/[0.5]" : "";
               return (
                 <button
@@ -167,14 +183,14 @@ export default function Results({ votes, maxChoices }) {
                 <div
                   className="grid grid-cols-3"
                   onClick={() =>
-                    setExpandedVoters(updateSet(expandedVoters, v.id))
+                    setExpandedVotersArr([...updateSet(expandedVoters, v.id)])
                   }
                 >
                   <div className="text-lg">{v.name}</div>
                   <div className="text-lg text-center">{v.age}</div>
                   <div className="text-lg text-center">{v.gender}</div>
                 </div>
-                {expandedVoters.has(v.id) && (
+                {expandedVoters.has(v.id)  && (
                   <div>
                     <div className="py-2 grid gap-2 grid-cols-3 justify-items-stretch">
                       {getVoter(filteredVotes, v.id).choices.map((url) => (
@@ -186,7 +202,7 @@ export default function Results({ votes, maxChoices }) {
                     <div className="flex justify-center my-4">
                       <button
                         onClick={() =>
-                          setIgnoredVoters(updateSet(ignoredVoters, v.id))
+                          setIgnoredVotersArr([...updateSet(ignoredVoters, v.id)])
                         }
                         className={`px-8 py-2 outline`}
                       >
