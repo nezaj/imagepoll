@@ -6,6 +6,7 @@ import Toggle from "react-toggle";
 import { useState } from "react";
 import imageCompression from "browser-image-compression";
 import { CopyToClipboard } from "react-copy-to-clipboard";
+import { nanoid } from 'nanoid';
 
 import { supabase } from "../utils/supabaseClient";
 import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY, LOCAL_RESULTS_KEY, initialResults } from "../utils/config";
@@ -65,21 +66,22 @@ export default function Home() {
     setIsPollCreating(true);
     try {
       const paths = images.map((i) => buildPath(i.file));
-      // (TODO): Currently this is a fire and forget, but we
-      // may want to wait on the images actually being upload
-      // before returning
-      await Promise.all(images.map((i, idx) => uploadImage(i.file, paths[idx])));
+      const poll_id = nanoid(8);
+      const poll_key = nanoid(8);
       const newPoll = {
+        id: poll_id,
+        poll_key,
         images: paths,
         share_results: areResultsShared,
         max_choices: numChoices,
       };
-      const { data } = await supabase.from("polls").insert([newPoll]);
+      await supabase.from("polls").insert(newPoll, {returning: "minimal"})
+      await Promise.all(images.map((i, idx) => uploadImage(i.file, paths[idx])));
       setPollData({
-        poll_id: data[0].id,
-        poll_key: data[0].poll_key,
+        poll_id,
+        poll_key
       });
-      setResults([LOCAL_RESULTS_KEY, data[0].poll_key], {...initialResults, pid: data[0].id, created: true})
+      setResults([LOCAL_RESULTS_KEY, poll_key], {...initialResults, pid: poll_id, created: true})
       successToast("Your poll has been created!");
       setIsPollCreated(true);
     } catch (error) {
@@ -144,14 +146,14 @@ export default function Home() {
                         <div className="pt-4 pb-2">Your polls</div>
                         {createdPollKeys.map(pkey =>
                           <div className="flex pb-2 mx-auto" key={pkey}>
-                            <div className="flex w-32">
+                            <div className="flex w-40">
                               Vote:
                               <Link href={`/vote/${results[pkey].pid}`}>
                                 <a className="pl-2 text-sky-500">{results[pkey].pid}</a>
                               </Link>
                             </div>
 
-                            <div className="flex w-32">
+                            <div className="flex w-40">
                               Results:
                               <Link href={`/results/${pkey}`}>
                                 <a className="pl-2 text-sky-500">{pkey}</a>

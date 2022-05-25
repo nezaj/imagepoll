@@ -2,10 +2,12 @@ import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
+import { CopyToClipboard } from "react-copy-to-clipboard";
+import { nanoid } from "nanoid"
+
 import { supabase } from "../../utils/supabaseClient";
 import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY } from "../../utils/config";
 import { StyledToastContainer, successToast, errorToast } from "../../utils/toast";
-import { CopyToClipboard } from "react-copy-to-clipboard";
 import { useLocalStorageAt } from "../../utils/hooks"
 
 const MIN_AGE = 1;
@@ -104,27 +106,28 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
     try {
       if (!id) {
         // Create new vote
+        const newId = nanoid(11);
         const newVote = {
+          id: newId,
           poll_id: pid,
           name,
           age,
           gender,
           choices,
         };
-        const { data } = await supabase.from("votes").insert([newVote])
-        setId(data[0].id);
+        await supabase.from("votes").insert(newVote, {returning: "minimal"})
+        setId(newId);
         successToast("Vote submitted!", 5000)
       } else {
         // edit existing voting
         const updatedVote = {
-          id,
-          poll_id: pid,
-          name,
-          age,
-          gender,
-          choices,
+          _id: id,
+          _name: name,
+          _age: age,
+          _gender: gender,
+          _choices: choices,
         }
-        await supabase.from("votes").upsert(updatedVote)
+        await supabase.rpc("update_vote", updatedVote)
         successToast("Vote updated!", 5000)
       }
       setHasVoted(true);
