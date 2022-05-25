@@ -1,13 +1,12 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
 import { supabase } from "../../utils/supabaseClient";
-import { IMAGE_POLL_BASE } from "../../utils/config";
+import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY } from "../../utils/config";
 import { StyledToastContainer, successToast } from "../../utils/toast";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import { useLocalStorageAt } from "../../utils/hooks"
-
-const LOCAL_VOTES_KEY = "imagepoll__votes";
 
 const MIN_AGE = 1;
 const MAX_AGE = 120;
@@ -140,7 +139,9 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
 
       {!hasVoted && (
       <div className="mx-auto max-w-lg p-4 flex flex-col items-center">
-        <div className="text-2xl py-4">Image Poll</div>
+        <Link href="/">
+          <a className="text-2xl py-4 text-center">Image Poll</a>
+        </Link>
         <div className="text-md py-2">Choose up to {maxChoices} pictures</div>
         <div className="text-center text-xs pb-4">
           (1 being your top choice, {maxChoices} being your last choice)

@@ -1,13 +1,17 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from 'next/router'
 import ImageUploading from "react-images-uploading";
 import Toggle from "react-toggle";
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import { IMAGE_POLL_BASE } from "../utils/config";
-import { StyledToastContainer, successToast } from "../utils/toast";
 import imageCompression from "browser-image-compression";
 import { CopyToClipboard } from "react-copy-to-clipboard";
+
+import { supabase } from "../utils/supabaseClient";
+import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY, LOCAL_RESULTS_KEY, initialResults } from "../utils/config";
+import { useLocalStorageAt } from "../utils/hooks"
+import { StyledToastContainer, successToast } from "../utils/toast";
+
 
 import "react-toggle/style.css";
 
@@ -17,9 +21,20 @@ function now() {
 
 export default function Home() {
   const { router } = useRouter();
+
+  // (TODO) This is ugly, I'm conflating vote/results state with displaying
+  // created polls and voted polls. A clean abstraction would be nicer.
+  const [results, setResults] = useLocalStorageAt([LOCAL_RESULTS_KEY], {});
+  const [votes, _setVotes] = useLocalStorageAt([LOCAL_VOTES_KEY], {});
+  const createdPollKeys = Object.keys(results).filter(key => results[key].created);
+  console.log("createdPollKeys", createdPollKeys)
+  const createdPollIds = new Set(createdPollKeys.map(key => results[key].pid))
+  const otherPollIds = Object.keys(votes).filter(id => !createdPollIds.has(id))
+
   const [images, setImages] = useState([]);
   const [numChoices, setNumChoices] = useState(null);
   const [areResultsShared, setAreResultsShared] = useState(false);
+
   const [isPollCreating, setIsPollCreating] = useState(false);
   const [isPollCreated, setIsPollCreated] = useState(false);
   const [pollData, setPollData] = useState(null);
@@ -65,6 +80,7 @@ export default function Home() {
         poll_id: data[0].id,
         poll_key: data[0].poll_key,
       });
+      setResults([LOCAL_RESULTS_KEY, data[0].poll_key], {...initialResults, pid: data[0].id, created: true})
       successToast("Your poll has been created!");
       setIsPollCreated(true);
     } catch (error) {
@@ -91,7 +107,11 @@ export default function Home() {
       <div className="mx-auto max-w-lg px-4 flex flex-col items-center">
         {!isPollCreated && (
           <div>
-            <div className="text-2xl py-4 text-center">Image Poll</div>
+            <div className="text-2xl pt-8 pb-4 text-center">
+            <Link href="/">
+              <a>Image Poll</a>
+            </Link>
+            </div>
             <div className="text-lg text-center">
               Image Poll enables you to ask your community to rank your photos.
               Use this to figure what is best for your dating profile,
@@ -119,6 +139,41 @@ export default function Home() {
                   >
                     Upload photos
                   </button>
+                  {!imageList.length && (
+                  <div>
+                    {createdPollKeys.length > 0 && (
+                      <div className="flex flex-col">
+                        <div className="pt-4 pb-2">Your polls</div>
+                        {createdPollKeys.map(pkey =>
+                          <div className="flex pb-2 mx-auto" key={pkey}>
+                            <div className="flex w-32">
+                              Vote:
+                              <Link href={`/vote/${results[pkey].pid}`}>
+                                <a className="pl-2 text-sky-500">{results[pkey].pid}</a>
+                              </Link>
+                            </div>
+
+                            <div className="flex w-32">
+                              Results:
+                              <Link href={`/results/${pkey}`}>
+                                <a className="pl-2 text-sky-500">{pkey}</a>
+                              </Link>
+                            </div>
+                          </div>)}
+                      </div>)}
+                    {otherPollIds.length > 0 && (
+                      <div className="flex flex-col">
+                        <div className="py-2">Other polls</div>
+                            {otherPollIds.map(pid =>
+                            <div key={pid} className="flex py-2 mx-auto">
+                              Vote:
+                              <Link href={`/vote/${pid}`}>
+                                <a className="pl-2 text-sky-500">{pid}</a>
+                              </Link>
+                            </div>
+                          )}
+                      </div>)}
+                  </div>)}
                   <div className="pt-4 grid gap-4 grid-cols-3">
                     {imageList.map((image, index) => (
                       <div key={image["data_url"]} className="image-item">

@@ -1,11 +1,11 @@
 import Head from "next/head";
-import { useState } from "react";
+import Link from "next/Link";
 import Image from "next/image";
+import { useState } from "react";
 
 import { supabase } from "../../utils/supabaseClient";
 import { useLocalStorageAt } from "../../utils/hooks"
-
-const LOCAL_RESULTS_KEY = 'imagepoll__results';
+import { LOCAL_RESULTS_KEY, RESULT_GENDERS, initialResults } from "../../utils/config";
 
 function scoreVotes(votes, maxChoices) {
   const scored = votes
@@ -41,8 +41,6 @@ function withIgnored(votes, ignoredVoters) {
   return votes.filter((v) => !ignored.has(v.id));
 }
 
-const GENDERS = ["All", "F", "M", "NB"];
-
 // (TODO) Add error handling
 async function fetchPollData(pkey) {
   return supabase.rpc("get_poll_by_key", { pkey }).then((res) => {
@@ -72,18 +70,10 @@ export async function getServerSideProps({ params }) {
   };
 }
 
-const initialFilters = {
-  minAge: 1,
-  maxAge: 120,
-  gender: GENDERS[0],
-  expandedVotersArr: [],
-  ignoredVotersArr: []
-}
-
 export default function Results({ votes, maxChoices, pkey }) {
-  const [resultsData, setResultsData] = useLocalStorageAt([LOCAL_RESULTS_KEY, pkey], initialFilters);
+  const [resultsData, setResultsData] = useLocalStorageAt([LOCAL_RESULTS_KEY, pkey], initialResults);
   const { minAge, maxAge, gender, expandedVotersArr, ignoredVotersArr } = resultsData;
-  const [setMinAge, setMaxAge, setGender, setExpandedVotersArr, setIgnoredVotersArr] = Object.keys(initialFilters).map(key => (newVal) => setResultsData([LOCAL_RESULTS_KEY, pkey, key], newVal));
+  const [setMinAge, setMaxAge, setGender, setExpandedVotersArr, setIgnoredVotersArr] = Object.keys(initialResults).map(key => (newVal) => setResultsData([LOCAL_RESULTS_KEY, pkey, key], newVal));
 
   // (TODO): Get rid of sets. I used a set originally because I found it
   // easier for updating and thought would be more performant. But once I added
@@ -107,7 +97,9 @@ export default function Results({ votes, maxChoices, pkey }) {
       </Head>
 
       <div className="overflow-y-auto mx-auto max-w-lg p-4 flex flex-col items-center">
-        <div className="text-2xl py-4">Image Poll</div>
+        <Link href="/">
+          <a className="text-2xl py-4 text-center">Image Poll</a>
+        </Link>
       </div>
       <div className="p-4 flex flex-col">
         <div className="text-xl">Results</div>
@@ -136,7 +128,7 @@ export default function Results({ votes, maxChoices, pkey }) {
         <div className="flex py-4">
           <div className="w-32 justify-start py-2">Gender</div>
           <div className="w-64 justify-end flex">
-            {GENDERS.map((g) => {
+            {RESULT_GENDERS.map((g) => {
               const selectedClass = g === gender ? "bg-sky-500/[0.5]" : "";
               return (
                 <button
