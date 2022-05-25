@@ -51,18 +51,25 @@ function UploadedImage({ url, isPriority, onClick, orderedChoices }) {
 
 export async function getServerSideProps({ params }) {
   const { pid } = params;
-  const [imagePaths, maxChoices, pollKey] = await supabase
+  const [imagePaths, maxChoices, pollKey, error] = await supabase
     .rpc("get_poll_by_id", { pid })
     .then((res) => {
       const { data } = res;
+      if (!data) { throw 'Not found' }
       const { max_choices, images, poll_key } = data[0];
       const imagePaths = images.map((i) => {
         const { data } = supabase.storage.from("photos").getPublicUrl(i);
         const { publicURL } = data;
         return publicURL;
       });
-      return [imagePaths, max_choices, poll_key];
-    });
+      return [imagePaths, max_choices, poll_key, null];
+    }).catch((error) => [null, null, null, error]);
+
+  if (error) {
+    return {
+      notFound: true
+    }
+  }
 
   return {
     props: { pid, imagePaths, maxChoices, pollKey },

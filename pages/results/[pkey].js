@@ -47,7 +47,7 @@ async function fetchPollData(pkey) {
     const { data } = res;
     const { max_choices } = data[0];
     return max_choices;
-  });
+  }).catch(() => null);
 }
 
 // (TODO) Add error handling
@@ -55,7 +55,7 @@ async function fetchPollVotes(pkey) {
   return supabase.rpc("get_poll_votes", { pkey }).then((res) => {
     const { data } = res;
     return data || [];
-  });
+  }).catch(() => null);
 }
 
 export async function getServerSideProps({ params }) {
@@ -64,6 +64,12 @@ export async function getServerSideProps({ params }) {
     await fetchPollData(pkey),
     await fetchPollVotes(pkey),
   ];
+
+  if (!maxChoices || !votes) {
+    return {
+      notFound: true
+    }
+  }
 
   return {
     props: { maxChoices, votes, pkey },
