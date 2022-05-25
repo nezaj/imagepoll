@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { supabase } from "../../utils/supabaseClient";
 import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY } from "../../utils/config";
-import { StyledToastContainer, successToast } from "../../utils/toast";
+import { StyledToastContainer, successToast, errorToast } from "../../utils/toast";
 import { CopyToClipboard } from "react-copy-to-clipboard";
 import { useLocalStorageAt } from "../../utils/hooks"
 
@@ -129,8 +129,7 @@ export default function Vote({ pid, imagePaths, maxChoices, pollKey}) {
       }
       setHasVoted(true);
     } catch (error) {
-      // (TODO) Add real error message
-      console.log(error.message);
+      errorToast("Whoopsie, wait a moment and try again. If problems persist, ping Joe.", 5000)
     } finally {
       setIsVoting(false);
     }

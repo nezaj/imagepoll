@@ -10,7 +10,7 @@ import { CopyToClipboard } from "react-copy-to-clipboard";
 import { supabase } from "../utils/supabaseClient";
 import { IMAGE_POLL_BASE, LOCAL_VOTES_KEY, LOCAL_RESULTS_KEY, initialResults } from "../utils/config";
 import { useLocalStorageAt } from "../utils/hooks"
-import { StyledToastContainer, successToast } from "../utils/toast";
+import { StyledToastContainer, successToast, errorToast } from "../utils/toast";
 
 
 import "react-toggle/style.css";
@@ -68,7 +68,7 @@ export default function Home() {
       // (TODO): Currently this is a fire and forget, but we
       // may want to wait on the images actually being upload
       // before returning
-      images.forEach((i, idx) => uploadImage(i.file, paths[idx]));
+      await Promise.all(images.map((i, idx) => uploadImage(i.file, paths[idx])));
       const newPoll = {
         images: paths,
         share_results: areResultsShared,
@@ -83,8 +83,7 @@ export default function Home() {
       successToast("Your poll has been created!");
       setIsPollCreated(true);
     } catch (error) {
-      // (TODO) Add real error message
-      console.log(error.message);
+      errorToast("Whoopsie, wait a moment and try again. If problems persist, ping Joe.", 5000)
     } finally {
       setIsPollCreating(false);
     }
