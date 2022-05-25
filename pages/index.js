@@ -27,7 +27,6 @@ export default function Home() {
   const [results, setResults] = useLocalStorageAt([LOCAL_RESULTS_KEY], {});
   const [votes, _setVotes] = useLocalStorageAt([LOCAL_VOTES_KEY], {});
   const createdPollKeys = Object.keys(results).filter(key => results[key].created);
-  console.log("createdPollKeys", createdPollKeys)
   const createdPollIds = new Set(createdPollKeys.map(key => results[key].pid))
   const otherPollIds = Object.keys(votes).filter(id => !createdPollIds.has(id))
 
